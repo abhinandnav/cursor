@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Magnifying Glass Cursor</title>
+  <style>
+    /* Hide default cursor */
+    body {
+      cursor: none;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      min-height: 200vh;
+      padding: 40px;
+    }
+
+    h1 {
+      font-size: 48px;
+    }
+
+    p {
+      font-size: 20px;
+      max-width: 600px;
+    }
+
+    /* Magnifier */
+    .magnifier {
+      position: fixed;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: 3px solid #000;
+      pointer-events: none;
+      overflow: hidden;
+      transform: translate(-50%, -50%);
+      z-index: 9999;
+      background-repeat: no-repeat;
+      background-size: 200%;
+    }
+
+    /* Optional handle */
+    .magnifier::after {
+      content: "";
+      position: absolute;
+      width: 60px;
+      height: 6px;
+      background: black;
+      bottom: -18px;
+      right: -40px;
+      transform: rotate(45deg);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Explore the Details</h1>
+  <p>
+    This is a magnifying glass cursor interaction.
+    Move your cursor around to zoom into the content.
+    Perfect for portfolios, storytelling, or research-based projects.
+  </p>
+
+  <div class="magnifier"></div>
+
+  <script>
+    const magnifier = document.querySelector(".magnifier");
+    const zoom = 2;
+
+    // Take a snapshot of the page
+    const body = document.body;
+    const html = document.documentElement;
+
+    const pageWidth = Math.max(
+      body.scrollWidth,
+      body.offsetWidth,
+      html.clientWidth,
+      html.scrollWidth,
+      html.offsetWidth
+    );
+
+    const pageHeight = Math.max(
+      body.scrollHeight,
+      body.offsetHeight,
+      html.clientHeight,
+      html.scrollHeight,
+      html.offsetHeight
+    );
+
+    magnifier.style.backgroundImage = `url(data:image/svg+xml;base64,${btoa(
+      `<svg xmlns='http://www.w3.org/2000/svg' width='${pageWidth}' height='${pageHeight}'>
+        <foreignObject width='100%' height='100%'>
+          <div xmlns='http://www.w3.org/1999/xhtml'>${document.body.innerHTML}</div>
+        </foreignObject>
+      </svg>`
+    )})`;
+
+    document.addEventListener("mousemove", (e) => {
+      const x = e.clientX;
+      const y = e.clientY;
+
+      magnifier.style.left = x + "px";
+      magnifier.style.top = y + "px";
+
+      const bgX = (x / window.innerWidth) * 100;
+      const bgY = (y / window.innerHeight) * 100;
+
+      magnifier.style.backgroundPosition = `${bgX}% ${bgY}%`;
+    });
+  </script>
+
+</body>
+</html>
