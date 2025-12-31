@@ -22,7 +22,7 @@
       font-family: Arial, Helvetica, sans-serif;
       background-color: #ffffff;
 
-      /* fallback cursor (PNG is still used, but the magnifier effect below is the "real" one) */
+      /* fallback cursor image (keep magnifying.png next to index.html) */
       cursor: url("magnifying.png") 16 16, zoom-in;
     }
 
@@ -76,7 +76,7 @@
       pointer-events: none;
     }
 
-    /* Small decorative crosshair / center mark to help visual alignment (optional) */
+    /* Small decorative center mark (optional) */
     .magnifier::after {
       content: "";
       position: absolute;
@@ -90,13 +90,12 @@
       mix-blend-mode: multiply;
     }
 
-    /* Make the area clearly readable when magnified (optional tweak) */
+    /* Improve rendering inside the clone */
     .content-clone * {
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
     }
 
-    /* Responsive tweak: smaller magnifier on very small screens */
     @media (max-width: 480px) {
       :root { --magnifier-size: 120px; --magnifier-zoom: 1.8; }
     }
@@ -126,7 +125,7 @@
     </p>
   </div>
 
-  <!-- Magnifier element (created dynamically by JS, but leaving this here for clarity) -->
+  <!-- Magnifier element -->
   <div id="magnifier" class="magnifier" aria-hidden="true">
     <div class="zoom"></div>
   </div>
@@ -142,42 +141,47 @@
       const zoomFactor = parseFloat(computedStyle.getPropertyValue('--magnifier-zoom')) || 2;
 
       // Create and insert a clone of the content inside the magnifier zoom area.
-      // We clone only once for performance. If you have dynamic content that changes,
-      // you'd need to update the clone or recreate it when content changes.
       const clone = content.cloneNode(true);
       clone.classList.add('content-clone');
 
-      // Ensure the clone uses the same width as the original content so layout matches.
       function updateCloneDimensions() {
-        // Set width to computed width of the original content (in px)
         const rect = content.getBoundingClientRect();
         clone.style.width = rect.width + 'px';
       }
 
       updateCloneDimensions();
-
-      // Apply scale to the clone. We scale the clone itself using transform so we can compute offsets.
       clone.style.transform = `scale(${zoomFactor})`;
-
-      // Append clone inside zoom container.
       zoomContainer.appendChild(clone);
+
+      // Utility to apply a circular "hole" mask to the original content at (x,y) with radius r.
+      function applyHideMask(x, y, r) {
+        // radial-gradient: transparent inside the circle (hides original),
+        // black outside (shows original). Works with mask and -webkit-mask.
+        const grad = `radial-gradient(circle ${r}px at ${x}px ${y}px, transparent ${r - 0.5}px, black ${r}px)`;
+        content.style.mask = grad;
+        content.style.webkitMask = grad;
+      }
+
+      function clearHideMask() {
+        content.style.mask = '';
+        content.style.webkitMask = '';
+      }
 
       // Show/hide magnifier when entering/leaving the content area.
       content.addEventListener('mouseenter', () => {
-        magnifier.style.display = 'block';
         updateCloneDimensions();
+        magnifier.style.display = 'block';
       });
 
       content.addEventListener('mouseleave', () => {
         magnifier.style.display = 'none';
+        clearHideMask();
       });
 
-      // Recompute dimensions on window resize / layout shifts
       window.addEventListener('resize', () => {
         updateCloneDimensions();
       });
 
-      // On mousemove, position the magnifier and move the clone so the correct area is centered.
       content.addEventListener('mousemove', (e) => {
         const rect = content.getBoundingClientRect();
 
@@ -185,49 +189,43 @@
         const relX = e.clientX - rect.left;
         const relY = e.clientY - rect.top;
 
-        // center of magnifier (radius)
         const r = sizePx / 2;
 
-        // position magnifier so its center is at the pointer (fixed to viewport coords)
+        // position magnifier so its center is at the pointer (viewport coordinates)
         const magLeft = e.clientX - r;
         const magTop = e.clientY - r;
-
         magnifier.style.left = `${magLeft}px`;
         magnifier.style.top = `${magTop}px`;
 
         // Compute clone offsets so that the point under the cursor ends up at the magnifier center.
-        // Because the clone is scaled by `zoomFactor` with transform-origin: 0 0,
-        // the visual position of a point at (x, y) becomes (cloneLeft + x) * zoomFactor.
-        // We want that equal to r (center of the magnifier), so:
-        // (cloneLeft + relX) * zoomFactor = r  =>  cloneLeft = r/zoomFactor - relX
         const cloneLeft = r / zoomFactor - relX;
         const cloneTop = r / zoomFactor - relY;
-
         clone.style.left = `${cloneLeft}px`;
         clone.style.top = `${cloneTop}px`;
+
+        // Hide the original content directly under the magnifier by applying a mask on the content element.
+        // The mask position uses pixel coordinates relative to the content element.
+        applyHideMask(relX, relY, r);
       });
 
-      // Optional: hide magnifier when scrolling to avoid jitter; show again after a short delay.
+      // Hide magnifier briefly on scroll to avoid jitter; restore mask on next mousemove.
       let scrollTimer = null;
       window.addEventListener('scroll', () => {
         if (magnifier.style.display === 'block') {
           magnifier.style.display = 'none';
           clearTimeout(scrollTimer);
           scrollTimer = setTimeout(() => {
-            // only show again if mouse is still inside content
-            // (we cannot detect mouse position during scrolling reliably, so leave hidden until next mousemove)
+            clearHideMask();
           }, 50);
         }
       });
 
-      // Accessibility: hide the decorative cursor on touch devices
+      // Accessibility: disable for touch devices
       function isTouchDevice() {
         return (('ontouchstart' in window) || navigator.maxTouchPoints > 0);
       }
       if (isTouchDevice()) {
         magnifier.style.display = 'none';
-        // optionally disable entirely
-        content.removeEventListener('mouseenter', () => {});
       }
     })();
   </script>
